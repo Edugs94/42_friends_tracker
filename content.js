@@ -436,7 +436,7 @@ function renderRankings(sortMode) {
         Promise.all(items).then(dataList => {
             dataList.sort((a, b) => sortMode === 'level' ? (b.level || 0) - (a.level || 0) : (b.correction_point || 0) - (a.correction_point || 0));
             updateListDOM('list-rank', dataList, (u, index) => {
-                let val = sortMode === 'level' ? `Lvl ${(u.level || 0).toFixed(2)}` : `${u.correction_point || 0} Eva Points`;
+                let val = sortMode === 'level' ? `Lvl ${(u.level || 0).toFixed(2)}` : `${u.correction_point || 0} Points`;
                 return `
                     <div class="ip-user-info">
                         <span style="font-weight:bold; color:#666; width:25px">${index === 0 ? '👑' : `#${index + 1}`}</span>
