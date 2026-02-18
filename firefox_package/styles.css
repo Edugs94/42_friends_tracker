@@ -1,0 +1,282 @@
+#ip-widget {
+    position: fixed !important;
+    bottom: 10px !important;
+    right: 20px !important;
+    width: 300px;
+    background: #1e1e1e;
+    color: #fff;
+    border-radius: 12px;
+    box-shadow: 0 4px 12px rgba(0,0,0,0.5);
+    z-index: 99999;
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+    overflow: hidden;
+    transition: height 0.3s ease, opacity 0.4s ease, transform 0.4s ease;
+    border: 1px solid #333;
+    opacity: 0;
+    transform: translateY(20px);
+}
+
+#ip-widget.ip-visible {
+    opacity: 1;
+    transform: translateY(0);
+}
+
+/* --- HEADER --- */
+#ip-header {
+    background: #00babc;
+    padding: 10px 15px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    cursor: pointer;
+    font-weight: bold;
+}
+
+/* --- TABS --- */
+#ip-tabs {
+    display: flex;
+    background: #252525;
+    border-bottom: 1px solid #333;
+}
+
+.ip-tab-btn {
+    flex: 1;
+    padding: 10px;
+    border: none;
+    background: none;
+    color: #888;
+    cursor: pointer;
+    font-size: 12px;
+    transition: 0.2s;
+}
+
+.ip-tab-btn:hover { color: #fff; }
+.ip-tab-btn.active {
+    color: #00babc;
+    border-bottom: 2px solid #00babc;
+}
+
+/* --- BODY & SECTIONS --- */
+#ip-body {
+    padding: 10px;
+    max-height: 400px;
+    overflow: hidden;
+}
+
+.ip-section {
+    display: none;
+    max-height: 380px;
+    overflow-y: auto;
+    padding-right: 4px;
+}
+
+.ip-section.active { display: block; }
+
+/* --- LIST ITEMS --- */
+.ip-list {
+    list-style: none;
+    padding: 0;
+    margin: 0;
+}
+
+.ip-item {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 8px;
+    background: #2a2a2a;
+    margin-bottom: 8px;
+    border-radius: 8px;
+    transition: transform 0.1s;
+}
+
+.ip-item:hover { background: #333; }
+
+.ip-user-info {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    cursor: pointer;
+    flex: 1;
+    min-width: 0;
+}
+
+.ip-avatar {
+    width: 32px;
+    height: 32px;
+    border-radius: 50%;
+    object-fit: cover;
+    background: #444;
+}
+
+.ip-login { font-weight: 600; font-size: 13px; }
+.ip-subtext { font-size: 11px; }
+
+.ip-status-online { color: #5cb85c; }
+.ip-status-offline { color: #d9534f; }
+
+/* --- INPUTS & BUTTONS --- */
+.ip-input-group {
+    display: flex;
+    gap: 5px;
+    margin-top: 10px;
+    border-top: 1px solid #333;
+    padding-top: 10px;
+}
+
+.ip-input {
+    flex: 1;
+    background: #121212;
+    border: 1px solid #444;
+    color: #fff;
+    padding: 6px 10px;
+    border-radius: 6px;
+    font-size: 12px;
+    outline: none;
+    box-sizing: border-box;
+}
+
+.ip-input:focus {
+    border-color: #00babc;
+    box-shadow: 0 0 0 1px #00babc inset;
+}
+
+.ip-btn {
+    background: #00babc;
+    color: white;
+    border: none;
+    padding: 6px 12px;
+    border-radius: 6px;
+    cursor: pointer;
+    font-size: 12px;
+}
+
+/* --- HOVER TOOLTIP (PROJECTS) --- */
+.ip-hover-card {
+    position: fixed;
+    background: rgba(20, 20, 20, 0.95);
+    border: 1px solid #444;
+    padding: 8px 12px;
+    border-radius: 6px;
+    z-index: 100001;
+    box-shadow: 0 4px 12px rgba(0,0,0,0.6);
+    font-size: 11px;
+    color: #ddd;
+    pointer-events: none;
+    min-width: 160px;
+    backdrop-filter: blur(4px);
+    opacity: 0;
+    visibility: hidden;
+    transition: opacity 0.2s ease;
+}
+
+.ip-hover-card.visible {
+    opacity: 1;
+    visibility: visible;
+}
+
+.ip-project-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 4px 0;
+}
+
+.ip-project-row:not(:last-child) {
+    border-bottom: 1px solid #333;
+    padding-bottom: 4px;
+}
+
+.ip-project-name { font-weight: 600; color: #00babc; }
+.ip-project-time { color: #888; font-size: 10px; display: flex; align-items: center; gap: 4px; }
+
+/* --- CUSTOM SCROLLBAR --- */
+.ip-section::-webkit-scrollbar { width: 6px; }
+.ip-section::-webkit-scrollbar-track { background: transparent; }
+.ip-section::-webkit-scrollbar-thumb { background-color: #333; border-radius: 10px; }
+.ip-section::-webkit-scrollbar-thumb:hover { background-color: #00babc; }
+
+/* --- COLLAPSED STATE --- */
+.ip-collapsed { height: 42px !important; }
+
+/* --- RANK FILTERS --- */
+.ip-rank-filters {
+    display: flex;
+    gap: 8px;
+    margin-bottom: 10px;
+}
+
+.ip-filter-btn {
+    flex: 1;
+    padding: 8px 12px;
+    border: 1px solid #444;
+    background: #2a2a2a;
+    color: #888;
+    border-radius: 6px;
+    cursor: pointer;
+    font-size: 12px;
+    font-weight: 500;
+    transition: all 0.2s ease;
+}
+
+.ip-filter-btn:hover {
+    background: #333;
+    color: #fff;
+}
+
+.ip-filter-btn.active {
+    background: #00babc;
+    border-color: #00babc;
+    color: #fff;
+}
+
+.ip-rank-val {
+    font-size: 12px;
+    font-weight: 600;
+    color: #00babc;
+    white-space: nowrap;
+    flex-shrink: 0;
+    padding-left: 10px;
+    text-align: right;
+    min-width: 90px;
+}
+
+.ip-rank-val.gold {
+    color: #ffd700;
+    font-size: 13px;
+}
+
+/* --- LOADING STATE --- */
+.ip-btn.loading {
+    position: relative;
+    color: transparent !important;
+    pointer-events: none;
+}
+
+.ip-btn.loading::after {
+    content: '';
+    position: absolute;
+    width: 14px;
+    height: 14px;
+    top: 50%;
+    left: 50%;
+    margin-left: -7px;
+    margin-top: -7px;
+    border: 2px solid transparent;
+    border-top-color: #fff;
+    border-radius: 50%;
+    animation: ip-spin 0.8s linear infinite;
+}
+
+@keyframes ip-spin {
+    to { transform: rotate(360deg); }
+}
+
+.ip-input.loading {
+    opacity: 0.6;
+    pointer-events: none;
+}
+
+.ip-input-group.loading {
+    opacity: 0.8;
+}
