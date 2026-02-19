@@ -492,12 +492,12 @@ async function fetchDataForUser(login, type) {
             const projects = await projectsReq.json();
 
             const exam = projects.filter(p => p.project.name.includes("Exam Rank")).sort((a,b) => b.project.name.localeCompare(a.project.name))[0];
-            if (exam && exam.status === "in_progress" && exam.validated !== true) {
+            if (exam && exam.status === "in_progress" && exam['validated?'] !== true) {
                 result.exam_project = exam.project.name;
                 result.exam_mark = null;
-                if (exam.current_team_id) {
-                    const teamReq = await fetch(`https://api.intra.42.fr/v2/teams/${exam.current_team_id}`, { headers: { "Authorization": `Bearer ${tokenRes.access_token}` } });
-                    if (teamReq.ok) result.exam_mark = (await teamReq.json()).final_mark;
+                if (exam.current_team_id && exam.teams) {
+                    const currentTeam = exam.teams.find(t => t.id === exam.current_team_id);
+                    if (currentTeam) result.exam_mark = currentTeam.final_mark;
                 }
             } else { result.exam_project = null; }
 
