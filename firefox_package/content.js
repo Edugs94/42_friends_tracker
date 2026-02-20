@@ -1,13 +1,12 @@
 // --- CONFIGURATION ---
 const CACHE_DURATION = 60000;
-const MAX_USERS = 15;
+const MAX_USERS = 25;
 const CURSUS_ID_42 = 21;
 const AUTO_CLEAR_INTERVAL = 8 * 60 * 60 * 1000;
 const DEFAULT_AVATAR = "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='%23555555'%3E%3Ccircle cx='12' cy='12' r='12'/%3E%3C/svg%3E";
 
 let globalQueue = Promise.resolve();
 let currentTab = 'friends';
-let draggedItem = null;
 let ui = {};
 let tooltipEl = null;
 
@@ -326,7 +325,7 @@ function refreshExamTab() {
 // 4. RENDERING & DOM UPDATES
 // =========================================================
 
-function updateListDOM(listId, itemsData, renderItemFn, enableDrag = false, storageKey = '', showTooltipOnHover = false) {
+function updateListDOM(listId, itemsData, renderItemFn, storageKey = '', showTooltipOnHover = false) {
     const list = document.getElementById(listId);
     if (!list) return;
 
@@ -342,9 +341,7 @@ function updateListDOM(listId, itemsData, renderItemFn, enableDrag = false, stor
             el = document.createElement('li');
             el.id = itemId;
             el.className = 'ip-item';
-            if(enableDrag) el.draggable = true;
             list.appendChild(el);
-            if(enableDrag) attachDragEvents(el, listId, storageKey);
         }
 
         const newContent = renderItemFn(item, index);
@@ -383,6 +380,12 @@ function renderFriendsList() {
     chrome.storage.sync.get(['friends'], (res) => {
         const items = (res.friends || []).map(login => new Promise(r => chrome.storage.local.get([`data_${login}`], d => r({ login, ...d[`data_${login}`] }))));
         Promise.all(items).then(dataList => {
+            dataList.sort((a, b) => {
+                const aOnline = !!a.location;
+                const bOnline = !!b.location;
+                if (aOnline !== bOnline) return bOnline - aOnline;
+                return a.login.localeCompare(b.login);
+            });
             updateListDOM('list-friends', dataList, (u) => {
                 let status = '<span style="color:#666">Loading...</span>';
                 if (u.location) status = `<span class="ip-status-online">🟢 ${u.location}</span>`;
@@ -398,7 +401,7 @@ function renderFriendsList() {
                     </div>
                     <button class="ip-btn del-btn" style="background:transparent; color:#666; padding:0;">×</button>
                 `;
-            }, true, 'friends', true);
+            }, 'friends', true);
         });
     });
 }
@@ -408,6 +411,12 @@ function renderExamList() {
     chrome.storage.sync.get(['exam_users'], (res) => {
         const items = (res.exam_users || []).map(login => new Promise(r => chrome.storage.local.get([`data_${login}`], d => r({ login, ...d[`data_${login}`] }))));
         Promise.all(items).then(dataList => {
+            dataList.sort((a, b) => {
+                const aHasExam = !!a.exam_project;
+                const bHasExam = !!b.exam_project;
+                if (aHasExam !== bHasExam) return bHasExam - aHasExam;
+                return a.login.localeCompare(b.login);
+            });
             updateListDOM('list-exam', dataList, (u) => {
                 let status = `<span style="font-size:11px; color:#555">No Exam</span>`;
                 if (u.exam_project) {
@@ -423,7 +432,7 @@ function renderExamList() {
                     ${status}
                     <button class="ip-btn del-btn" style="background:transparent; color:#666; padding:0; margin-left:10px">×</button>
                 `;
-            }, true, 'exam_users', false);
+            }, 'exam_users', false);
         });
     });
 }
@@ -445,7 +454,7 @@ function renderRankings(sortMode) {
                     </div>
                     <div class="ip-rank-val ${index === 0 ? 'gold' : ''}">${val}</div>
                 `;
-            }, false, '', false);
+            }, '', false);
         });
     });
 }
@@ -515,28 +524,3 @@ async function fetchDataForUser(login, type) {
     } catch (e) { console.error("Fetch Error", e); }
 }
 
-function attachDragEvents(el, listId, storageKey) {
-    el.addEventListener('dragstart', (e) => { e.target.classList.add('sortable-dragging'); draggedItem = e.target; });
-    el.addEventListener('dragend', (e) => { e.target.classList.remove('sortable-dragging'); draggedItem = null; saveOrder(listId, storageKey); });
-    const list = document.getElementById(listId);
-    if (!list.hasAttribute('data-drag-enabled')) {
-        list.setAttribute('data-drag-enabled', 'true');
-        list.addEventListener('dragover', (e) => {
-            e.preventDefault();
-            const dragging = list.querySelector('.sortable-dragging');
-            if (!dragging) return;
-            const siblings = [...list.querySelectorAll('.ip-item:not(.sortable-dragging)')];
-            const nextSibling = siblings.find(sib => e.clientY <= sib.getBoundingClientRect().top + sib.offsetHeight / 2);
-            list.insertBefore(dragging, nextSibling);
-        });
-    }
-}
-function saveOrder(listId, storageKey) {
-    const list = document.getElementById(listId);
-    const logins = [];
-    list.querySelectorAll('.ip-item').forEach(item => {
-        const loginDiv = item.querySelector('.ip-login');
-        if (loginDiv) logins.push(loginDiv.innerText);
-    });
-    chrome.storage.sync.set({ [storageKey]: logins });
-}
