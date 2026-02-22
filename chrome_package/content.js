@@ -351,7 +351,7 @@ function updateListDOM(listId, itemsData, renderItemFn, storageKey = '', showToo
             const infoDiv = el.querySelector('.ip-user-info');
             if(infoDiv) {
 
-                infoDiv.onclick = () => window.open(`https://profile-v3.intra.42.fr/users/${item.login}`, '_blank');
+                infoDiv.onclick = () => window.open(`https://profile.intra.42.fr/users/${item.login}`, '_blank');
 
                 if (showTooltipOnHover) {
                     infoDiv.onmouseenter = (e) => showTooltip(e, item.active_projects);
