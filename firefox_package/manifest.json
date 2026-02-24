@@ -1,7 +1,7 @@
 {
   "manifest_version": 3,
   "name": "42 Friends Tracker",
-  "version": "1.0.3",
+  "version": "1.0.4",
   "description": "Track your 42 school friends status, rankings and exams live without reloading tabs",
   "icons": {
     "16": "icons/icon16.png",

@@ -420,9 +420,20 @@ function renderExamList() {
             updateListDOM('list-exam', dataList, (u) => {
                 let status = `<span style="font-size:11px; color:#555">No Exam</span>`;
                 if (u.exam_project) {
-                    const mark = u.exam_mark !== null ? `${u.exam_mark}%` : 'NOT STARTED';
-                    const color = u.exam_mark >= 50 ? '#5cb85c' : '#d9534f';
-                    status = `<div style="text-align:right"><div style="font-size:11px; font-weight:bold">${u.exam_project}</div><div style="font-weight:bold; color:${color}">${mark}</div></div>`;
+
+                    let markText = 'NOT STARTED';
+                    let markValue = 0;
+
+                    if (u.exam_mark !== null && u.exam_mark !== undefined) {
+                        markText = `${u.exam_mark}%`;
+                        markValue = Math.max(0, Math.min(100, u.exam_mark));
+                    }
+
+                    const hue = (markValue / 100) * 120;
+
+                    const color = `hsl(${hue}, 80%, 45%)`;
+
+                    status = `<div style="text-align:right"><div style="font-size:11px; font-weight:bold">${u.exam_project}</div><div style="font-weight:bold; color:${color}">${markText}</div></div>`;
                 }
                 return `
                     <div class="ip-user-info">
