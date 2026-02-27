@@ -100,7 +100,7 @@ function renderWidgetHTML(isCollapsed, startTab) {
 
             <div id="tab-exam" class="ip-section ${isActive('exam')}">
                 <p style="font-size:11px; color:#666; text-align:center; margin-bottom:5px">
-                    <span id="exam-timer">Live Tracking (1m)</span>
+                    <span id="exam-timer">Live Tracking (5 minutes)</span>
                 </p>
                 <ul id="list-exam" class="ip-list"></ul>
                 <div id="error-exam" style="color:#d9534f; font-size:11px; margin-bottom:5px; display:none"></div>
@@ -364,7 +364,7 @@ function showRefreshingAnimation() {
     const timer = document.getElementById('exam-timer');
     if (timer) {
         timer.innerText = "Refreshing...";
-        setTimeout(() => { if (timer) timer.innerText = "Live Tracking (1m)"; }, 2000);
+        setTimeout(() => { if (timer) timer.innerText = "Live Tracking (5 minutes)"; }, 2000);
     }
 }
 

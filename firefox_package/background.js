@@ -1,12 +1,12 @@
 const CLIENT_ID_42 = "u-s4t2ud-fb5c8ab5f298bd248c77aad39dc055b6fee79807f8318f579cfc93148593f7d7";
 const AUTH_WORKER_URL = "https://42-exam-tracker-pro.devbyedd.workers.dev";
-const CACHE_DURATION = 50000;
+const CACHE_DURATION = 290000;
 const CURSUS_ID_42 = 21;
 
 let globalQueue = Promise.resolve();
 
 chrome.runtime.onInstalled.addListener(() => {
-  chrome.alarms.create("refreshData", { periodInMinutes: 1 });
+  chrome.alarms.create("refreshData", { periodInMinutes: 5 });
   chrome.alarms.create("autoClearExam", { periodInMinutes: 480 });
 });
 
