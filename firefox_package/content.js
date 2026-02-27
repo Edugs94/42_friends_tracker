@@ -133,12 +133,12 @@ function setupEventListeners() {
         chrome.storage.local.set({ ipCollapsed: collapsed });
     });
 
-    document.getElementById('ip-logout-btn').addEventListener('click', () => { 
-        if(confirm("Logout?")) chrome.storage.local.remove('access_token'); 
+    document.getElementById('ip-logout-btn').addEventListener('click', () => {
+        if(confirm("Logout?")) chrome.storage.local.remove('access_token');
     });
 
     document.querySelectorAll('.ip-tab-btn').forEach(btn => btn.addEventListener('click', (e) => switchTab(e.target.dataset.tab)));
-    
+
     document.querySelectorAll('.ip-filter-btn').forEach(btn => {
         btn.addEventListener('click', (e) => {
             document.querySelectorAll('.ip-filter-btn').forEach(b => b.classList.remove('active'));
@@ -150,9 +150,9 @@ function setupEventListeners() {
     ui.loginBtn.addEventListener('click', () => {
         ui.loginBtn.innerText = "...";
         chrome.runtime.sendMessage({ action: "login" }, (res) => {
-            if (!res || !res.success) { 
-                ui.loginBtn.innerText = "Login"; 
-                showError('friends', "Login Failed"); 
+            if (!res || !res.success) {
+                ui.loginBtn.innerText = "Login";
+                showError('friends', "Login Failed");
             }
         });
     });
@@ -195,10 +195,10 @@ function hideTooltip() {
 
 function showError(tab, msg) {
     const el = tab === 'friends' ? ui.errors.friends : ui.errors.exam;
-    if(el) { 
-        el.innerText = msg; 
-        el.style.display = 'block'; 
-        setTimeout(() => el.style.display = 'none', 3000); 
+    if(el) {
+        el.innerText = msg;
+        el.style.display = 'block';
+        setTimeout(() => el.style.display = 'none', 3000);
     }
 }
 
@@ -251,28 +251,31 @@ function addUser(storageKey) {
         inputEl.focus();
     };
 
-    chrome.runtime.sendMessage({ action: "validateUser", login }, (response) => {
-        if (!response || !response.valid) {
-            showError(tabName, response?.error || "User invalid");
+    chrome.storage.sync.get([storageKey], (res) => {
+        const list = res[storageKey] || [];
+        if (list.length >= MAX_USERS) {
+            showError(tabName, `Limit reached (${MAX_USERS})`);
+            resetLoading();
+            return;
+        }
+        if (list.includes(login)) {
+            showError(tabName, "User already added");
             resetLoading();
             return;
         }
 
-        chrome.storage.sync.get([storageKey], (res) => {
-            const list = res[storageKey] || [];
-            if (list.length >= MAX_USERS) {
-                showError(tabName, `Limit reached (${MAX_USERS})`);
+        chrome.runtime.sendMessage({ action: "validateAndAddUser", login, storageKey }, (response) => {
+            if (!response || !response.success) {
+                showError(tabName, response?.error || "User invalid");
                 resetLoading();
-            } else if (!list.includes(login)) {
-                list.push(login);
-                chrome.storage.sync.set({ [storageKey]: list }, () => {
-                    inputEl.value = '';
-                    resetLoading();
-                });
-            } else {
-                showError(tabName, "User already added");
-                resetLoading();
+                return;
             }
+
+            list.push(login);
+            chrome.storage.sync.set({ [storageKey]: list }, () => {
+                inputEl.value = '';
+                resetLoading();
+            });
         });
     });
 }
@@ -371,7 +374,7 @@ function showRefreshingAnimation() {
 function renderExamList() {
     if (currentTab !== 'exam') return;
     showRefreshingAnimation();
-    
+
     chrome.storage.sync.get(['exam_users'], (res) => {
         const items = (res.exam_users || []).map(login => new Promise(r => chrome.storage.local.get([`data_${login}`], d => r({ login, ...(d[`data_${login}`] || {}) }))));
         Promise.all(items).then(dataList => {
