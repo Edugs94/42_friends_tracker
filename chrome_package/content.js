@@ -1,18 +1,10 @@
-// --- CONFIGURATION ---
-const CACHE_DURATION = 60000;
 const MAX_USERS = 25;
-const CURSUS_ID_42 = 21;
-const AUTO_CLEAR_INTERVAL = 8 * 60 * 60 * 1000;
 const DEFAULT_AVATAR = "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='%23555555'%3E%3Ccircle cx='12' cy='12' r='12'/%3E%3C/svg%3E";
 
-let globalQueue = Promise.resolve();
 let currentTab = 'friends';
 let ui = {};
 let tooltipEl = null;
-
-// =========================================================
-// 1. INITIALIZATION
-// =========================================================
+let lastRefreshAnim = 0;
 
 if (document.readyState === 'complete') {
     setTimeout(initWidget, 500);
@@ -39,12 +31,19 @@ function initWidget() {
         });
 
         checkAuth();
-        initAutoClearTimer();
-        setInterval(() => {
-            refreshExamTab();
-            checkAutoClear();
-        }, 60000);
+        chrome.storage.onChanged.addListener(handleStorageChanges);
     });
+}
+
+function handleStorageChanges(changes, namespace) {
+    if (namespace === 'local' && changes.access_token) {
+        checkAuth();
+    }
+    if (namespace === 'local' || namespace === 'sync') {
+        if (currentTab === 'friends') renderFriendsList();
+        if (currentTab === 'exam') renderExamList();
+        if (currentTab === 'rank') renderRankings();
+    }
 }
 
 function createTooltipElement() {
@@ -134,9 +133,12 @@ function setupEventListeners() {
         chrome.storage.local.set({ ipCollapsed: collapsed });
     });
 
-    document.getElementById('ip-logout-btn').addEventListener('click', () => { if(confirm("Logout?")) performLogout(); });
+    document.getElementById('ip-logout-btn').addEventListener('click', () => { 
+        if(confirm("Logout?")) chrome.storage.local.remove('access_token'); 
+    });
 
     document.querySelectorAll('.ip-tab-btn').forEach(btn => btn.addEventListener('click', (e) => switchTab(e.target.dataset.tab)));
+    
     document.querySelectorAll('.ip-filter-btn').forEach(btn => {
         btn.addEventListener('click', (e) => {
             document.querySelectorAll('.ip-filter-btn').forEach(b => b.classList.remove('active'));
@@ -148,8 +150,10 @@ function setupEventListeners() {
     ui.loginBtn.addEventListener('click', () => {
         ui.loginBtn.innerText = "...";
         chrome.runtime.sendMessage({ action: "login" }, (res) => {
-            if (res && res.success) checkAuth();
-            else { ui.loginBtn.innerText = "Login"; showError('friends', "Login Failed"); }
+            if (!res || !res.success) { 
+                ui.loginBtn.innerText = "Login"; 
+                showError('friends', "Login Failed"); 
+            }
         });
     });
 
@@ -158,10 +162,6 @@ function setupEventListeners() {
     ui.addBtns.exam.addEventListener('click', () => addUser('exam_users'));
     ui.inputs.exam.addEventListener('keypress', (e) => { if (e.key === 'Enter') addUser('exam_users'); });
 }
-
-// =========================================================
-// 2. LOGIC (HOVER & CLICK)
-// =========================================================
 
 function showTooltip(e, projects) {
     if (!projects || projects.length === 0) {
@@ -174,7 +174,6 @@ function showTooltip(e, projects) {
             const now = new Date();
             const diffTime = Math.abs(now - startDate);
             const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
-
             html += `
                 <div class="ip-project-row">
                     <span class="ip-project-name">${p.name}</span>
@@ -182,11 +181,9 @@ function showTooltip(e, projects) {
                 </div>
             `;
         });
-
         tooltipEl.innerHTML = html;
         tooltipEl.classList.add('visible');
     }
-
     const rect = e.target.getBoundingClientRect();
     tooltipEl.style.top = `${rect.top}px`;
     tooltipEl.style.left = `${rect.left - 170}px`;
@@ -196,31 +193,13 @@ function hideTooltip() {
     tooltipEl.classList.remove('visible');
 }
 
-// =========================================================
-// 3. CORE LOGIC
-// =========================================================
-
-function initAutoClearTimer() {
-    chrome.storage.local.get(['lastExamClear'], (res) => {
-        if (!res.lastExamClear) chrome.storage.local.set({ lastExamClear: Date.now() });
-    });
-}
-
-function checkAutoClear() {
-    chrome.storage.local.get(['lastExamClear'], (res) => {
-        if (Date.now() - (res.lastExamClear || 0) > AUTO_CLEAR_INTERVAL) {
-            chrome.storage.sync.set({ exam_users: [] }, () => {
-                chrome.storage.local.set({ lastExamClear: Date.now() });
-                if (currentTab === 'exam') renderExamList();
-            });
-        }
-    });
-}
-
-function performLogout() { chrome.storage.local.remove('access_token', () => checkAuth()); }
 function showError(tab, msg) {
     const el = tab === 'friends' ? ui.errors.friends : ui.errors.exam;
-    if(el) { el.innerText = msg; el.style.display = 'block'; setTimeout(() => el.style.display = 'none', 3000); }
+    if(el) { 
+        el.innerText = msg; 
+        el.style.display = 'block'; 
+        setTimeout(() => el.style.display = 'none', 3000); 
+    }
 }
 
 function switchTab(tabName) {
@@ -242,7 +221,6 @@ function checkAuth() {
             ui.loginScreen.style.display = 'none';
             document.getElementById('ip-tabs').style.display = 'flex';
             switchTab(currentTab);
-            refreshAllData();
         } else {
             ui.loginScreen.style.display = 'block';
             document.getElementById('ip-tabs').style.display = 'none';
@@ -251,7 +229,7 @@ function checkAuth() {
     });
 }
 
-async function addUser(storageKey) {
+function addUser(storageKey) {
     const isFriend = storageKey === 'friends';
     const inputEl = isFriend ? ui.inputs.friends : ui.inputs.exam;
     const btnEl = isFriend ? ui.addBtns.friends : ui.addBtns.exam;
@@ -260,7 +238,6 @@ async function addUser(storageKey) {
 
     if (!login) return;
 
-    inputEl.value = '';
     inputEl.classList.add('loading');
     btnEl.classList.add('loading');
     inputEl.disabled = true;
@@ -274,56 +251,31 @@ async function addUser(storageKey) {
         inputEl.focus();
     };
 
-    if (!(await validateUserExists(login, tabName))) { resetLoading(); return; }
-
-    chrome.storage.sync.get([storageKey], (res) => {
-        const list = res[storageKey] || [];
-        if (list.length >= MAX_USERS) {
-            showError(tabName, `Limit reached (${MAX_USERS})`);
+    chrome.runtime.sendMessage({ action: "validateUser", login }, (response) => {
+        if (!response || !response.valid) {
+            showError(tabName, response?.error || "User invalid");
             resetLoading();
+            return;
         }
-        else if (!list.includes(login)) {
-            list.push(login);
-            chrome.storage.sync.set({ [storageKey]: list }, async () => {
-                await fetchDataForUser(login, 'full');
-                isFriend ? renderFriendsList() : renderExamList();
+
+        chrome.storage.sync.get([storageKey], (res) => {
+            const list = res[storageKey] || [];
+            if (list.length >= MAX_USERS) {
+                showError(tabName, `Limit reached (${MAX_USERS})`);
                 resetLoading();
-            });
-        } else {
-            resetLoading();
-            showError(tabName, "User already added");
-        }
-    });
-}
-
-async function validateUserExists(login, tabName) {
-    return new Promise(resolve => {
-        chrome.storage.local.get(['access_token'], async (res) => {
-            try {
-                const req = await fetch(`https://api.intra.42.fr/v2/users/${login}`, { headers: { "Authorization": `Bearer ${res.access_token}` } });
-                if (req.status === 404) { showError(tabName, "User does not exist"); resolve(false); return; }
-                if (req.status === 401) { showError(tabName, "Token expired"); performLogout(); resolve(false); return; }
-                resolve(req.ok);
-            } catch (e) { showError(tabName, "Connection Error"); resolve(false); }
+            } else if (!list.includes(login)) {
+                list.push(login);
+                chrome.storage.sync.set({ [storageKey]: list }, () => {
+                    inputEl.value = '';
+                    resetLoading();
+                });
+            } else {
+                showError(tabName, "User already added");
+                resetLoading();
+            }
         });
     });
 }
-
-function refreshAllData() {
-    chrome.storage.sync.get(['friends', 'exam_users'], (res) => {
-        [...new Set([...(res.friends || []), ...(res.exam_users || [])])].forEach(login => queueFetch(login, 'full'));
-    });
-}
-
-function refreshExamTab() {
-    chrome.storage.sync.get(['exam_users'], (res) => (res.exam_users || []).forEach(login => queueFetch(login, 'exam_only')));
-    const timer = document.getElementById('exam-timer');
-    if(timer) { timer.innerText = "Refreshing..."; setTimeout(() => timer.innerText = "Live Tracking (1m)", 2000); }
-}
-
-// =========================================================
-// 4. RENDERING & DOM UPDATES
-// =========================================================
 
 function updateListDOM(listId, itemsData, renderItemFn, storageKey = '', showTooltipOnHover = false) {
     const list = document.getElementById(listId);
@@ -349,10 +301,8 @@ function updateListDOM(listId, itemsData, renderItemFn, storageKey = '', showToo
             el.innerHTML = newContent;
 
             const infoDiv = el.querySelector('.ip-user-info');
-            if(infoDiv) {
-
+            if (infoDiv) {
                 infoDiv.onclick = () => window.open(`https://profile.intra.42.fr/users/${item.login}`, '_blank');
-
                 if (showTooltipOnHover) {
                     infoDiv.onmouseenter = (e) => showTooltip(e, item.active_projects);
                     infoDiv.onmouseleave = hideTooltip;
@@ -363,7 +313,7 @@ function updateListDOM(listId, itemsData, renderItemFn, storageKey = '', showToo
             if (delBtn) {
                 delBtn.onclick = (e) => {
                     e.stopPropagation();
-                     chrome.storage.sync.get([storageKey], (r) => {
+                    chrome.storage.sync.get([storageKey], (r) => {
                         const newL = (r[storageKey] || []).filter(f => f !== item.login);
                         chrome.storage.sync.set({ [storageKey]: newL }, () => el.remove());
                     });
@@ -378,7 +328,7 @@ function updateListDOM(listId, itemsData, renderItemFn, storageKey = '', showToo
 function renderFriendsList() {
     if (currentTab !== 'friends') return;
     chrome.storage.sync.get(['friends'], (res) => {
-        const items = (res.friends || []).map(login => new Promise(r => chrome.storage.local.get([`data_${login}`], d => r({ login, ...d[`data_${login}`] }))));
+        const items = (res.friends || []).map(login => new Promise(r => chrome.storage.local.get([`data_${login}`], d => r({ login, ...(d[`data_${login}`] || {}) }))));
         Promise.all(items).then(dataList => {
             dataList.sort((a, b) => {
                 const aOnline = !!a.location;
@@ -406,10 +356,24 @@ function renderFriendsList() {
     });
 }
 
+function showRefreshingAnimation() {
+    const now = Date.now();
+    if (now - lastRefreshAnim < 30000) return;
+    lastRefreshAnim = now;
+
+    const timer = document.getElementById('exam-timer');
+    if (timer) {
+        timer.innerText = "Refreshing...";
+        setTimeout(() => { if (timer) timer.innerText = "Live Tracking (1m)"; }, 2000);
+    }
+}
+
 function renderExamList() {
     if (currentTab !== 'exam') return;
+    showRefreshingAnimation();
+    
     chrome.storage.sync.get(['exam_users'], (res) => {
-        const items = (res.exam_users || []).map(login => new Promise(r => chrome.storage.local.get([`data_${login}`], d => r({ login, ...d[`data_${login}`] }))));
+        const items = (res.exam_users || []).map(login => new Promise(r => chrome.storage.local.get([`data_${login}`], d => r({ login, ...(d[`data_${login}`] || {}) }))));
         Promise.all(items).then(dataList => {
             dataList.sort((a, b) => {
                 const aHasExam = !!a.exam_project;
@@ -420,19 +384,14 @@ function renderExamList() {
             updateListDOM('list-exam', dataList, (u) => {
                 let status = `<span style="font-size:11px; color:#555">No Exam</span>`;
                 if (u.exam_project) {
-
                     let markText = 'NOT STARTED';
                     let markValue = 0;
-
                     if (u.exam_mark !== null && u.exam_mark !== undefined) {
                         markText = `${u.exam_mark}%`;
                         markValue = Math.max(0, Math.min(100, u.exam_mark));
                     }
-
                     const hue = (markValue / 100) * 120;
-
                     const color = `hsl(${hue}, 80%, 45%)`;
-
                     status = `<div style="text-align:right"><div style="font-size:11px; font-weight:bold">${u.exam_project}</div><div style="font-weight:bold; color:${color}">${markText}</div></div>`;
                 }
                 return `
@@ -452,7 +411,7 @@ function renderRankings(sortMode) {
     if (currentTab !== 'rank') return;
     if (!sortMode) sortMode = document.querySelector('.ip-filter-btn.active')?.dataset.sort || 'level';
     chrome.storage.sync.get(['friends'], async (res) => {
-        const items = (res.friends || []).map(login => new Promise(r => chrome.storage.local.get([`data_${login}`], d => r({ login, ...d[`data_${login}`] }))));
+        const items = (res.friends || []).map(login => new Promise(r => chrome.storage.local.get([`data_${login}`], d => r({ login, ...(d[`data_${login}`] || {}) }))));
         Promise.all(items).then(dataList => {
             dataList.sort((a, b) => sortMode === 'level' ? (b.level || 0) - (a.level || 0) : (b.correction_point || 0) - (a.correction_point || 0));
             updateListDOM('list-rank', dataList, (u, index) => {
@@ -469,69 +428,3 @@ function renderRankings(sortMode) {
         });
     });
 }
-
-// =========================================================
-// 5. DATA FETCHING
-// =========================================================
-
-function queueFetch(login, type = 'full') {
-    globalQueue = globalQueue.then(async () => {
-        await fetchDataForUser(login, type);
-        if (currentTab === 'friends' && type === 'full') renderFriendsList();
-        if (currentTab === 'exam') renderExamList();
-        if (currentTab === 'rank' && type === 'full') renderRankings();
-        await new Promise(r => setTimeout(r, 200));
-    });
-}
-
-async function fetchDataForUser(login, type) {
-    const cachedContainer = await chrome.storage.local.get([`data_${login}`]);
-    const cached = cachedContainer[`data_${login}`];
-
-    if (type === 'full' && cached && (Date.now() - cached.timestamp < CACHE_DURATION)) return;
-    const tokenRes = await chrome.storage.local.get(['access_token']);
-    if (!tokenRes.access_token) return;
-
-    try {
-        const result = cached ? { ...cached } : { status: 'success' };
-        result.timestamp = Date.now();
-
-        if (type === 'full') {
-            const profileReq = await fetch(`https://api.intra.42.fr/v2/users/${login}`, { headers: { "Authorization": `Bearer ${tokenRes.access_token}` } });
-            if (profileReq.ok) {
-                const profile = await profileReq.json();
-                if (profile.image) result.image = profile.image.versions?.small || profile.image.link;
-                result.location = profile.location;
-                result.correction_point = profile.correction_point;
-                result.level = profile.cursus_users.find(c => c.cursus_id === CURSUS_ID_42)?.level || 0;
-            } else if (profileReq.status === 401) { performLogout(); return; }
-        }
-
-        const projectsReq = await fetch(`https://api.intra.42.fr/v2/users/${login}/projects_users?page[size]=100`, { headers: { "Authorization": `Bearer ${tokenRes.access_token}` } });
-        if (projectsReq.ok) {
-            const projects = await projectsReq.json();
-
-            const exam = projects.filter(p => p.project.name.includes("Exam Rank")).sort((a,b) => b.project.name.localeCompare(a.project.name))[0];
-            if (exam && exam.status === "in_progress" && exam['validated?'] !== true) {
-                result.exam_project = exam.project.name;
-                result.exam_mark = null;
-                if (exam.current_team_id && exam.teams) {
-                    const currentTeam = exam.teams.find(t => t.id === exam.current_team_id);
-                    if (currentTeam) result.exam_mark = currentTeam.final_mark;
-                }
-            } else { result.exam_project = null; }
-
-            result.active_projects = projects.filter(p =>
-                p.status !== 'finished' &&
-                p.cursus_ids.includes(CURSUS_ID_42) &&
-                !p.project.name.includes("Exam Rank")
-            ).map(p => ({
-                name: p.project.name,
-                created_at: p.created_at
-            }));
-        }
-
-        await chrome.storage.local.set({ [`data_${login}`]: result });
-    } catch (e) { console.error("Fetch Error", e); }
-}
-
